@@ -11,6 +11,19 @@ struct Node<T> {
     next: Link<T>,
 }
 
+impl<T> Drop for List<T> {
+    fn drop(&mut self) {
+        let mut head = self.head.take();
+        while let Some(node) = head {
+            if let Ok(mut node) = Rc::try_unwrap(node) {
+                head = node.next.take();
+            } else {
+                break;
+            }
+        }
+    }
+}
+
 impl<T> List<T> {
     pub fn new() -> Self {
         List { head: None }
@@ -80,5 +93,15 @@ mod test {
         let list = list.tail();
         assert_eq!(list.head(), None);
 
+    }
+
+    #[test]
+    fn iter() {
+        let list = List::new().append(1).append(2).append(3);
+
+        let mut iter = list.iter();
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&1));
     }
 }
