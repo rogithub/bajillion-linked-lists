@@ -10,13 +10,55 @@ struct Node<T> {
     next: Link<T>,
 }
 
+// Iter is generic over *some* lifetime, it doesn't care
+pub struct Iter<'a, T> {
+    next: Option<&'a Node<T>>,
+}
+
+
+// We *do* have a lifetime here, because Iter has one that we need to define
+impl<'a, T> Iterator for Iter<'a, T> {
+    // Need it here too, this is a type declaration
+    type Item = &'a T;
+
+    // None of this needs to change, handled by the above.
+    // Self continues to be incredibly hype and amazing
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.map(|node| {
+            self.next = node.next.as_deref();
+            //self.next = node.next.as_ref().map::<&Node<T>, _>(|node| &node);
+            &node.elem
+        })
+    }
+}
+
+
 // Tuple structs are an alternative form of struct,
 // useful for trivial wrappers around other types.
 pub struct IntoIter<T>(List<T>);
 
-// Iter is generic over *some* lifetime, it doesn't care
-pub struct Iter<'a, T> {
-    next: Option<&'a Node<T>>,
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        // access fields of a tuple struct numerically
+        self.0.pop()
+    }
+}
+
+pub struct IterMut<'a, T> {
+    next: Option<&'a mut Node<T>>,
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.take().map(|node| {
+            self.next = node.next.as_deref_mut();
+            &mut node.elem
+        })
+    }
 }
 
 // No lifetime here, List doesn't have any associated lifetimes
@@ -58,29 +100,9 @@ impl<T> List<T> {
             next: self.head.as_deref(),
         }
     }
-}
 
-// We *do* have a lifetime here, because Iter has one that we need to define
-impl<'a, T> Iterator for Iter<'a, T> {
-    // Need it here too, this is a type declaration
-    type Item = &'a T;
-
-    // None of this needs to change, handled by the above.
-    // Self continues to be incredibly hype and amazing
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next.map(|node| {
-            self.next = node.next.as_deref();
-            //self.next = node.next.as_ref().map::<&Node<T>, _>(|node| &node);
-            &node.elem
-        })
-    }
-}
-
-impl<T> Iterator for IntoIter<T> {
-    type Item = T;
-    fn next(&mut self) -> Option<Self::Item> {
-        // access fields of a tuple struct numerically
-        self.0.pop()
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        IterMut { next: self.head.as_deref_mut() }
     }
 }
 
@@ -171,5 +193,16 @@ mod test {
         assert_eq!(iter.next(), Some(&3));
         assert_eq!(iter.next(), Some(&2));
         assert_eq!(iter.next(), Some(&1));
+    }
+
+    #[test]
+    fn iter_mut() {
+        let mut list = List::new();
+        list.push(1); list.push(2); list.push(3);
+
+        let mut iter = list.iter_mut();
+        assert_eq!(iter.next(), Some(&mut 3));
+        assert_eq!(iter.next(), Some(&mut 2));
+        assert_eq!(iter.next(), Some(&mut 1));
     }
 }
