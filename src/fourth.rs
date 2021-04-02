@@ -134,6 +134,10 @@ impl<T> List<T> {
     pub fn into_iter(self) -> IntoIter<T> {
         IntoIter(self)
     }
+
+    pub fn iter(&self) -> Iter<T> {
+        Iter(self.head.as_ref().map(|head| head.borrow()))
+    }
 }
 
 pub struct IntoIter<T>(List<T>);
@@ -150,6 +154,8 @@ impl<T> DoubleEndedIterator for IntoIter<T> {
         self.0.pop_back()
     }
 }
+
+pub struct Iter<'a, T>(Option<Ref<'a, Node<T>>>);
 
 #[cfg(test)]
 mod test {
